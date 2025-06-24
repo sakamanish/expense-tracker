@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, TrendingUp, Calendar, Target } from 'lucide-react';
+import { PieChart, TrendingUp, Calendar, Target, BarChart3 } from 'lucide-react';
 import { useExpenses } from '../hooks/useExpenses';
 
 export const Statistics: React.FC = () => {
