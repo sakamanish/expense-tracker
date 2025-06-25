@@ -25,7 +25,5 @@ jobs:
           mkdir -p out
           javac -d out *.java
 
-      - name: Run Java program (optional)
-        run: |
-          java -cp out Calculator
-        continue-on-error: true
+      - name: Run Java program
+        run: java -cp out Calculator
