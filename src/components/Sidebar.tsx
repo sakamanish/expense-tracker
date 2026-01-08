@@ -1,5 +1,6 @@
 import React from 'react';
-import { Home, Plus, List, BarChart3, Wallet } from 'lucide-react';
+import { Home, Plus, List, BarChart3, Wallet, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SidebarProps {
   activeTab: string;
@@ -7,6 +8,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
+  const { signOut, user } = useAuth();
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'add', label: 'Add Transaction', icon: Plus },
@@ -18,7 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
     <div className="hidden md:flex md:flex-col md:w-64 md:bg-white md:border-r md:border-gray-200 md:min-h-screen">
       <div className="p-6">
         <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl p-2">
+          <div className="bg-gradient-to-r from-blue-600 to-green-600 rounded-xl p-2">
             <Wallet className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -32,31 +34,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
-          
+
           return (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all ${
                 isActive
-                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? 'text-purple-600' : 'text-gray-500'}`} />
+              <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
               <span className="font-medium">{tab.label}</span>
             </button>
           );
         })}
       </nav>
 
-      <div className="p-4">
+      <div className="p-4 space-y-3">
         <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-xl p-4">
-          <h3 className="font-semibold text-emerald-900 mb-2">💡 Pro Tip</h3>
           <p className="text-sm text-emerald-700">
-            Track your expenses daily to build better financial habits!
+            Logged in as <span className="font-medium">{user?.email}</span>
           </p>
         </div>
+
+        <button
+          onClick={signOut}
+          className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all text-red-600 hover:bg-red-50 border border-red-200"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="font-medium">Sign Out</span>
+        </button>
       </div>
     </div>
   );

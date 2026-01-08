@@ -1,87 +1,175 @@
 import { useState, useEffect } from 'react';
 import { Expense, Category, ExpenseStats } from '../types/expense';
-
-const STORAGE_KEY = 'expense_manager_data';
-const CATEGORIES_KEY = 'expense_manager_categories';
-
-const defaultCategories: Category[] = [
-  { id: '1', name: 'Food & Dining', color: '#F59E0B', icon: 'UtensilsCrossed' },
-  { id: '2', name: 'Transportation', color: '#3B82F6', icon: 'Car' },
-  { id: '3', name: 'Shopping', color: '#EF4444', icon: 'ShoppingBag' },
-  { id: '4', name: 'Entertainment', color: '#8B5CF6', icon: 'Gamepad2' },
-  { id: '5', name: 'Bills & Utilities', color: '#06B6D4', icon: 'Receipt' },
-  { id: '6', name: 'Healthcare', color: '#10B981', icon: 'Heart' },
-  { id: '7', name: 'Education', color: '#F97316', icon: 'GraduationCap' },
-  { id: '8', name: 'Salary', color: '#22C55E', icon: 'DollarSign' },
-  { id: '9', name: 'Other', color: '#6B7280', icon: 'MoreHorizontal' },
-];
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useExpenses = () => {
+  const { user } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<Category[]>(defaultCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedExpenses = localStorage.getItem(STORAGE_KEY);
-    const savedCategories = localStorage.getItem(CATEGORIES_KEY);
-    
-    if (savedExpenses) {
-      setExpenses(JSON.parse(savedExpenses));
-    }
-    
-    if (savedCategories) {
-      setCategories(JSON.parse(savedCategories));
-    }
-  }, []);
+    if (!user) return;
 
-  const saveExpenses = (newExpenses: Expense[]) => {
-    setExpenses(newExpenses);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newExpenses));
-  };
+    fetchCategories();
+    fetchExpenses();
 
-  const addExpense = (expense: Omit<Expense, 'id' | 'createdAt'>) => {
-    const newExpense: Expense = {
-      ...expense,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
+    const expensesSubscription = supabase
+      .channel('expenses_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'expenses',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchExpenses();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      expensesSubscription.unsubscribe();
     };
-    saveExpenses([...expenses, newExpense]);
+  }, [user]);
+
+  const fetchCategories = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching categories:', error);
+      return;
+    }
+
+    setCategories(data || []);
   };
 
-  const updateExpense = (id: string, updatedExpense: Partial<Expense>) => {
-    const newExpenses = expenses.map(exp => 
-      exp.id === id ? { ...exp, ...updatedExpense } : exp
-    );
-    saveExpenses(newExpenses);
+  const fetchExpenses = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching expenses:', error);
+      setLoading(false);
+      return;
+    }
+
+    const mappedExpenses: Expense[] = (data || []).map((exp) => ({
+      id: exp.id,
+      amount: parseFloat(exp.amount),
+      description: exp.description,
+      category: exp.category_id || '',
+      date: exp.date,
+      type: exp.type as 'income' | 'expense',
+      createdAt: exp.created_at,
+    }));
+
+    setExpenses(mappedExpenses);
+    setLoading(false);
   };
 
-  const deleteExpense = (id: string) => {
-    const newExpenses = expenses.filter(exp => exp.id !== id);
-    saveExpenses(newExpenses);
+  const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>) => {
+    if (!user) return;
+
+    const { error } = await supabase.from('expenses').insert({
+      user_id: user.id,
+      amount: expense.amount,
+      description: expense.description,
+      category_id: expense.category || null,
+      date: expense.date,
+      type: expense.type,
+    });
+
+    if (error) {
+      console.error('Error adding expense:', error);
+      return;
+    }
+
+    fetchExpenses();
+  };
+
+  const updateExpense = async (id: string, updatedExpense: Partial<Expense>) => {
+    if (!user) return;
+
+    const updateData: any = {};
+
+    if (updatedExpense.amount !== undefined) updateData.amount = updatedExpense.amount;
+    if (updatedExpense.description !== undefined) updateData.description = updatedExpense.description;
+    if (updatedExpense.category !== undefined) updateData.category_id = updatedExpense.category || null;
+    if (updatedExpense.date !== undefined) updateData.date = updatedExpense.date;
+    if (updatedExpense.type !== undefined) updateData.type = updatedExpense.type;
+
+    const { error } = await supabase
+      .from('expenses')
+      .update(updateData)
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error updating expense:', error);
+      return;
+    }
+
+    fetchExpenses();
+  };
+
+  const deleteExpense = async (id: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting expense:', error);
+      return;
+    }
+
+    fetchExpenses();
   };
 
   const getStats = (): ExpenseStats => {
     const totalIncome = expenses
-      .filter(exp => exp.type === 'income')
+      .filter((exp) => exp.type === 'income')
       .reduce((sum, exp) => sum + exp.amount, 0);
-    
+
     const totalExpenses = expenses
-      .filter(exp => exp.type === 'expense')
+      .filter((exp) => exp.type === 'expense')
       .reduce((sum, exp) => sum + exp.amount, 0);
-    
+
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    
+
     const monthlyExpenses = expenses
-      .filter(exp => {
+      .filter((exp) => {
         const expDate = new Date(exp.date);
-        return exp.type === 'expense' && 
-               expDate.getMonth() === currentMonth && 
-               expDate.getFullYear() === currentYear;
+        return (
+          exp.type === 'expense' &&
+          expDate.getMonth() === currentMonth &&
+          expDate.getFullYear() === currentYear
+        );
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
     const categoryBreakdown = expenses
-      .filter(exp => exp.type === 'expense')
+      .filter((exp) => exp.type === 'expense')
       .reduce((acc, exp) => {
         acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
         return acc;
@@ -99,6 +187,7 @@ export const useExpenses = () => {
   return {
     expenses,
     categories,
+    loading,
     addExpense,
     updateExpense,
     deleteExpense,
