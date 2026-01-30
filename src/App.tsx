@@ -3,6 +3,9 @@ import { Dashboard } from './components/Dashboard';
 import { ExpenseForm } from './components/ExpenseForm';
 import { ExpenseList } from './components/ExpenseList';
 import { Statistics } from './components/Statistics';
+import { BudgetManager } from './components/BudgetManager';
+import { RecurringExpenses } from './components/RecurringExpenses';
+import { Analytics } from './components/Analytics';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
 import { Auth } from './components/Auth';
@@ -38,6 +41,12 @@ function App() {
         return <ExpenseList />;
       case 'stats':
         return <Statistics />;
+      case 'budget':
+        return <BudgetManager />;
+      case 'recurring':
+        return <RecurringExpenses />;
+      case 'analytics':
+        return <Analytics />;
       default:
         return <Dashboard />;
     }

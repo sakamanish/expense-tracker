@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Plus, List, BarChart3, Wallet, LogOut } from 'lucide-react';
+import { Home, Plus, List, BarChart3, Wallet, LogOut, Target, TrendingDown, RotateCcw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface SidebarProps {
@@ -13,7 +13,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'add', label: 'Add Transaction', icon: Plus },
     { id: 'list', label: 'Transaction History', icon: List },
-    { id: 'stats', label: 'Statistics', icon: BarChart3 },
+    { id: 'budget', label: 'Budgets', icon: Target },
+    { id: 'recurring', label: 'Recurring Expenses', icon: RotateCcw },
+    { id: 'analytics', label: 'Analytics', icon: TrendingDown },
   ];
 
   return (
